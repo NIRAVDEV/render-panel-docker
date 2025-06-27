@@ -18,6 +18,11 @@ RUN echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt
     php8.2-curl php8.2-bcmath php8.2-zip php8.2-redis && \
     apt clean && rm -rf /var/lib/apt/lists/*
 
+# Set PHP 8.2 as default
+RUN update-alternatives --set php /usr/bin/php8.2 && \
+    update-alternatives --set phpize /usr/bin/phpize8.2 && \
+    update-alternatives --set php-config /usr/bin/php-config8.2
+
 # Install Node.js 22 and Yarn using NVM
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
     . "$NVM_DIR/nvm.sh" && nvm install 22 && nvm use 22 && npm install -g yarn
