@@ -31,7 +31,7 @@ COPY default.conf /etc/nginx/sites-available/default
 EXPOSE 80
 
 # Start services
-CMD service php7.4-fpm start && \
+CMD service php8.2-fpm start && \
     service redis-server start && \
     service nginx start && \
     tail -f /dev/null
