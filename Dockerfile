@@ -3,7 +3,7 @@ FROM debian:bullseye
 LABEL maintainer="you@example.com"
 WORKDIR /app
 
-# Install base dependencies and PHP 8.2 (Sury repo)
+# Install system dependencies and PHP 8.2 from Sury repo
 RUN apt update && apt install -y \
     curl ca-certificates gnupg2 lsb-release wget unzip git make dos2unix sudo nginx \
     software-properties-common mariadb-client redis-server \
@@ -12,12 +12,11 @@ RUN apt update && apt install -y \
     && apt update && apt install -y \
     php8.2 php8.2-cli php8.2-fpm php8.2-mysql php8.2-mbstring php8.2-xml \
     php8.2-curl php8.2-bcmath php8.2-zip php8.2-redis \
-    build-essential composer \
-    && apt clean && rm -rf /var/lib/apt/lists/*
+    build-essential composer
 
-# Install Node.js 22 and Yarn using NVM
+# Install Node.js 22 and Yarn using NVM properly
 ENV NVM_DIR=/root/.nvm
-ENV NODE_VERSION=22
+ENV NODE_VERSION=22.17.0
 
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
     . "$NVM_DIR/nvm.sh" && \
@@ -28,12 +27,14 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | b
     ln -s $NVM_DIR/versions/node/v$NODE_VERSION/bin/npm /usr/bin/npm && \
     ln -s $NVM_DIR/versions/node/v$NODE_VERSION/bin/yarn /usr/bin/yarn
 
-# Clone and setup MythicalDash v3
+# Clone and setup MythicalDash
 RUN git clone https://github.com/MythicalLTD/MythicalDash /app && \
-    cd /app && make install
+    cd /app && \
+    export NVM_DIR="/root/.nvm" && \
+    . "$NVM_DIR/nvm.sh" && \
+    yarn --version && \
+    make install
 
-# Expose ports for web and API
 EXPOSE 80 443 6000
 
-# Start command (you can change this based on how MythicalDash starts)
 CMD ["bash"]
