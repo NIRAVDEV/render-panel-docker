@@ -27,6 +27,14 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | b
     ln -s $NVM_DIR/versions/node/v$NODE_VERSION/bin/npm /usr/bin/npm && \
     ln -s $NVM_DIR/versions/node/v$NODE_VERSION/bin/yarn /usr/bin/yarn
 
+# Install NVM, Node 22, and Yarn
+ENV NVM_DIR=/root/.nvm
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
+    . "$NVM_DIR/nvm.sh" && \
+    nvm install 22 && \
+    nvm use 22 && \
+    npm install -g yarn
+
 # Clone and setup MythicalDash
 RUN git clone https://github.com/MythicalLTD/MythicalDash /app && \
     cd /app && \
