@@ -42,6 +42,12 @@ CMD ["bash"]
 # Set working directory
 WORKDIR /app
 
+# Copy nginx config
+COPY default.conf /etc/nginx/sites-available/default
+
+# Ensure correct permissions
+RUN chmod 644 /etc/nginx/sites-available/default
+
 # Start the services: PHP-FPM, Nginx, and queue workers (if needed)
 CMD service php8.2-fpm start && \
     service nginx start && \
