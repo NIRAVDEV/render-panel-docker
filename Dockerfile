@@ -11,12 +11,17 @@ RUN apt update && apt install -y \
     php php-cli php-fpm php-mysql php-mbstring php-xml php-curl php-bcmath php-zip php-redis \
     build-essential composer nano
 
-# Install lsb-release and add PHP 8.2 repo
-RUN apt update && apt install -y lsb-release curl gnupg2 ca-certificates && \
+# Install PHP 8.2 and required extensions
+RUN apt update && \
+    apt install -y lsb-release curl gnupg2 ca-certificates && \
     echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list && \
     curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/php.gpg && \
     apt update && \
     apt install -y php8.2 php8.2-cli php8.2-fpm php8.2-mysql php8.2-mbstring php8.2-xml php8.2-curl php8.2-bcmath php8.2-zip php8.2-redis php8.2-dev && \
+    update-alternatives --install /usr/bin/php php /usr/bin/php8.2 80 && \
+    update-alternatives --install /usr/bin/php-cli php-cli /usr/bin/php8.2 80 && \
+    apt purge -y php7.4* && \
+    apt autoremove -y && \
     apt clean && rm -rf /var/lib/apt/lists/*
     
 # Install Node.js 22 and Yarn using NVM
