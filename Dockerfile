@@ -42,7 +42,8 @@ COPY default.conf /etc/nginx/sites-enabled/default
 EXPOSE 80
 
 # Start all services
-CMD service php8.2-fpm start && \
-    service redis-server start && \
-    service nginx start && \
-    tail -f /dev/null
+CMD tail -f /dev/null
+
+CMD ["nginx", "-g", "daemon off;"]
+CMD ["redis-server", "-g", "daemon off;"]
+CMD ["php8.2-fpm", "-g", "daemon off;"]
