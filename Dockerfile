@@ -3,15 +3,19 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NVM_DIR=/root/.nvm
 
-RUN apt update && apt upgrade -y && \
-    apt install -y \
-    curl ca-certificates gnupg software-properties-common unzip git make dos2unix \
-    nginx mariadb-client redis-server \
+# Base tools
+RUN apt update && apt install -y \
+    software-properties-common curl gnupg ca-certificates lsb-release
+
+# Add PHP 8.2 PPA
+RUN add-apt-repository ppa:ondrej/php -y && apt update
+
+# Install PHP 8.2 + dependencies
+RUN apt install -y \
+    unzip git make dos2unix nginx mariadb-client redis-server \
     php8.2 php8.2-{cli,fpm,mysql,mbstring,xml,curl,bcmath,zip,redis} \
     build-essential && \
     apt clean && rm -rf /var/lib/apt/lists/*
-
-# Set up your app after this...
 
 # Install system dependencies
 RUN apt update && apt install -y \
