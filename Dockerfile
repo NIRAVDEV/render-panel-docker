@@ -11,8 +11,7 @@ RUN apt update && apt install -y \
     php php-cli php-fpm php-mysql php-mbstring php-xml php-curl php-bcmath php-zip php-redis \
     build-essential composer nano
 
-# Install PHP 8.2 and set as default
-RUN echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list && \
+# Install lsb-release and add PHP 8.2 repo
 RUN apt update && apt install -y lsb-release curl gnupg2 ca-certificates && \
     echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list && \
     curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/php.gpg && \
