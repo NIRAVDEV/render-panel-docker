@@ -1,46 +1,55 @@
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV NVM_DIR=/root/.nvm
 
-# Base tools
+# === System packages & PHP PPA ===
 RUN apt update && apt install -y \
-    software-properties-common curl gnupg ca-certificates lsb-release
-
-# Add PHP 8.2 PPA
-RUN add-apt-repository ppa:ondrej/php -y && apt update
-
-# Install PHP 8.2 + dependencies
-RUN apt install -y \
+    software-properties-common curl ca-certificates gnupg lsb-release && \
+    add-apt-repository ppa:ondrej/php -y && \
+    apt update && apt install -y \
     unzip git make dos2unix nginx mariadb-client redis-server \
     php8.2 php8.2-{cli,fpm,mysql,mbstring,xml,curl,bcmath,zip,redis} \
     build-essential && \
     apt clean && rm -rf /var/lib/apt/lists/*
 
-# Install system dependencies
-RUN apt update && apt install -y \
-  curl ca-certificates gnupg software-properties-common unzip git make dos2unix nginx \
-  php8.2 php8.2-{cli,fpm,mysql,mbstring,xml,curl,bcmath,zip,redis} \
-  mariadb-client redis-server \
-  build-essential
+# === Install NVM + Node.js 22 + Yarn ===
+ENV NVM_DIR=/root/.nvm
+ENV NODE_VERSION=22.0.0
 
-# Install NVM + Node.js 22 + Yarn
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.2/install.sh | bash
-RUN bash -c "source /root/.nvm/nvm.sh && nvm install 22 && nvm alias default 22 && npm install -g yarn"
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
+    . "$NVM_DIR/nvm.sh" && \
+    nvm install $NODE_VERSION && \
+    nvm use $NODE_VERSION && \
+    nvm alias default $NODE_VERSION && \
+    npm install -g yarn
 
-# Install Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+ENV PATH=$NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 
-# Download and extract MythicalDash
+# === Install Composer globally ===
+RUN curl -sS https://getcomposer.org/installer | php && \
+    mv composer.phar /usr/local/bin/composer
+
+# === Create app directory ===
 WORKDIR /var/www/mythicaldash
-RUN curl -Lo MythicalDash.zip https://github.com/MythicalLTD/MythicalDash/releases/latest/download/MythicalDash.zip \
-  && unzip -o MythicalDash.zip -d . \
-  && rm MythicalDash.zip
 
-# Copy entrypoint
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# === Download MythicalDash release ===
+RUN curl -Lo latest.zip https://github.com/MythicalLTD/MythicalDash/releases/latest/download/MythicalDash.zip && \
+    unzip -o latest.zip && rm latest.zip
 
+# === Install backend ===
+WORKDIR /var/www/mythicaldash/backend
+RUN composer install --no-dev
+
+# === Install frontend ===
+WORKDIR /var/www/mythicaldash/frontend
+RUN yarn install && yarn build
+
+# === Expose necessary ports ===
 EXPOSE 80 443 6000
 
-CMD ["/entrypoint.sh"]
+# === Startup Command (you can adjust this for production run logic) ===
+CMD service mysql start && \
+    service redis-server start && \
+    service php8.2-fpm start && \
+    service nginx start && \
+    tail -f /dev/null
