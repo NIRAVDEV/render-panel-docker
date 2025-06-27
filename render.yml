@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: mythicaldash-panel
+    env: docker
+    repo: https://github.com/NIRAVDEV/render-panel-docker
+    dockerContext: .
+    dockerfilePath: Dockerfile
+    plan: free
+    envVars:
+      - key: DB_HOST
+        value: mythicaldash-db
+      - key: DB_PORT
+        value: 3306
+      - key: DB_DATABASE
+        value: mythicaldash
+      - key: DB_USERNAME
+        value: mythicaluser
+      - key: DB_PASSWORD
+        value: mythicalpass
+      - key: REDIS_HOST
+        value: mythicaldash-redis
+    autoDeploy: true
+    healthCheckPath: /
+    ports:
+      - port: 80
+        protocol: http
+
+  - type: redis
+    name: mythicaldash-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+
+  - type: mysql
+    name: mythicaldash-db
+    plan: free
+    properties:
+      databaseName: mythicaldash
+      user: mythicaluser
+      password: mythicalpass
