@@ -38,3 +38,16 @@ RUN git clone https://github.com/MythicalLTD/MythicalDash /app && \
 EXPOSE 80 443 6000
 
 CMD ["bash"]
+
+# Set working directory
+WORKDIR /app
+
+# Start the services: PHP-FPM, Nginx, and queue workers (if needed)
+CMD service php8.2-fpm start && \
+    service nginx start && \
+    tail -f /dev/null
+
+COPY startup.sh /startup.sh
+RUN chmod +x /startup.sh
+
+CMD ["/startup.sh"]
