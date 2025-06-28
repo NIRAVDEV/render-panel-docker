@@ -49,8 +49,11 @@ echo "[✅] Starting Nginx..."\n\
 EXPOSE 80
 
 # Start all services
-CMD tail -f /dev/null
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "[✅] Starting PHP-FPM..."\n\
+/usr/sbin/php-fpm8.2 -D\n\
+echo "[✅] Starting Nginx..."\n\
+/usr/sbin/nginx -g "daemon off;"\n' > /entrypoint.sh && chmod +x /entrypoint.sh
 
-CMD ["nginx", "-g", "daemon off;"]
-CMD ["redis-server", "-g", "daemon off;"]
-CMD ["php8.2-fpm", "-g", "daemon off;"]
+CMD ["/entrypoint.sh"]
