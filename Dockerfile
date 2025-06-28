@@ -23,23 +23,20 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | b
     nvm alias default $NODE_VERSION && \
     npm install -g yarn
 
-# Persist NVM path
-RUN echo 'export NVM_DIR="$HOME/.nvm"' >> ~/.bashrc && \
-    echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> ~/.bashrc
-
-# Set working directory and copy project
+# Set working directory and copy files
 WORKDIR /var/www/html
 COPY . .
 
 # Build frontend
 RUN cd frontend && yarn install && yarn build
 
-# Install backend dependencies
+# Install backend
 RUN cd backend && composer install --no-dev --optimize-autoloader
 
-# Setup Nginx config (escaped properly)
+# Fix nginx config safely
 RUN rm /etc/nginx/sites-enabled/default && \
-    echo "server {
+    printf "%s\n" "\
+server {
     listen 8080;
     root /var/www/html/frontend/dist;
     index index.html;
@@ -57,7 +54,7 @@ RUN rm /etc/nginx/sites-enabled/default && \
 }" > /etc/nginx/sites-available/default && \
     ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
-# Entrypoint to start services
+# Entrypoint script
 RUN echo '#!/bin/bash\n\
 set -e\n\
 echo "[✅] Starting PHP-FPM..."\n\
