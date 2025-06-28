@@ -1,65 +1,48 @@
-FROM ubuntu:22.04
+FROM debian:bullseye
 
+# Set environment
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NVM_DIR=/root/.nvm
-ENV NODE_VERSION=22
-ENV PATH="$NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH"
 
-# Install system dependencies and PHP 8.2
+# Install base packages
 RUN apt update && apt install -y \
-    software-properties-common curl wget git unzip zip gnupg2 lsb-release ca-certificates \
-    nginx php8.2 php8.2-cli php8.2-fpm php8.2-mysql php8.2-curl php8.2-mbstring \
-    php8.2-xml php8.2-zip php8.2-bcmath php8.2-gd php8.2-readline php8.2-common php8.2-sqlite3 php8.2-tokenizer \
-    php8.2-opcache php8.2-soap php8.2-intl php8.2-pgsql build-essential
+    curl ca-certificates gnupg2 lsb-release wget unzip git make dos2unix sudo nginx \
+    software-properties-common mariadb-client redis-server \
+    php php-cli php-fpm php-mysql php-mbstring php-xml php-curl php-bcmath php-zip php-redis \
+    build-essential composer nano
 
-# Install Composer
-RUN curl -sS https://getcomposer.org/installer | php && mv composer.phar /usr/local/bin/composer
-
+# Install PHP 8.2 and required extensions
+RUN apt update && \
+    apt install -y lsb-release curl gnupg2 ca-certificates && \
+    echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list && \
+    curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/php.gpg && \
+    apt update && \
+    apt install -y php8.2 php8.2-cli php8.2-fpm php8.2-mysql php8.2-mbstring php8.2-xml php8.2-curl php8.2-bcmath php8.2-zip php8.2-redis php8.2-dev && \
+    update-alternatives --install /usr/bin/php php /usr/bin/php8.2 80 && \
+    update-alternatives --install /usr/bin/php-cli php-cli /usr/bin/php8.2 80 && \
+    apt purge -y php7.4* && \
+    apt autoremove -y && \
+    apt clean && rm -rf /var/lib/apt/lists/*
+    
 # Install Node.js 22 and Yarn using NVM
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
-    . "$NVM_DIR/nvm.sh" && \
-    nvm install $NODE_VERSION && \
-    nvm use $NODE_VERSION && \
-    nvm alias default $NODE_VERSION && \
-    npm install -g yarn
+    . "$NVM_DIR/nvm.sh" && nvm install 22 && nvm use 22 && npm install -g yarn
 
-# Set working directory and copy files
-WORKDIR /var/www/html
-COPY . .
+# Clone MythicalDash
+RUN git clone https://github.com/MythicalLTD/MythicalDash /app
+WORKDIR /app
 
-# Build frontend
-RUN cd frontend && yarn install && yarn build
+# Install panel dependencies
+RUN bash -c ". $NVM_DIR/nvm.sh && nvm use 22 && make install"
 
-# Install backend dependencies
-RUN cd backend && composer install --no-dev --optimize-autoloader
+# Copy nginx config
+COPY default.conf /etc/nginx/sites-enabled/default
 
-# Write Nginx config safely using bash -c + echo
-RUN bash -c 'rm /etc/nginx/sites-enabled/default && \
-echo "server {
-    listen 8080;
-    root /var/www/html/frontend/dist;
-    index index.html;
+# Expose port
+EXPOSE 80
 
-    location /api/ {
-        proxy_pass http://localhost:9000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    }
-
-    location / {
-        try_files \$uri /index.html;
-    }
-}" > /etc/nginx/sites-available/default && \
-ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default'
-
-# Entrypoint: PHP-FPM and Nginx startup
-RUN echo '#!/bin/bash\n\
-set -e\n\
-echo "[✅] Starting PHP-FPM..."\n\
-/usr/sbin/php-fpm8.2 -D\n\
-echo "[✅] Starting Nginx..."\n\
-exec /usr/sbin/nginx -g "daemon off;"' > /entrypoint.sh && chmod +x /entrypoint.sh
-
-EXPOSE 8080
-CMD ["/entrypoint.sh"]
+# Start all services
+CMD service php8.2-fpm start && \
+    service redis-server start && \
+    service nginx start && \
+    tail -f /dev/null
