@@ -30,31 +30,30 @@ COPY . .
 # Build frontend
 RUN cd frontend && yarn install && yarn build
 
-# Install backend
+# Install backend dependencies
 RUN cd backend && composer install --no-dev --optimize-autoloader
 
-# Fix nginx config safely
+# Configure Nginx (no indentation inside printf)
 RUN rm /etc/nginx/sites-enabled/default && \
-    printf "%s\n" "\
-server {
-    listen 8080;
-    root /var/www/html/frontend/dist;
-    index index.html;
+    printf "%s\n" "server {
+listen 8080;
+root /var/www/html/frontend/dist;
+index index.html;
 
-    location /api/ {
-        proxy_pass http://localhost:9000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    }
+location /api/ {
+    proxy_pass http://localhost:9000;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+}
 
-    location / {
-        try_files \$uri /index.html;
-    }
+location / {
+    try_files \$uri /index.html;
+}
 }" > /etc/nginx/sites-available/default && \
     ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
-# Entrypoint script
+# Entrypoint script to start PHP-FPM and Nginx
 RUN echo '#!/bin/bash\n\
 set -e\n\
 echo "[✅] Starting PHP-FPM..."\n\
