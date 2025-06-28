@@ -1,48 +1,68 @@
+Base image
+
 FROM debian:bullseye
 
-# Set environment
+Set environment variables
+
 ENV DEBIAN_FRONTEND=noninteractive
-ENV NVM_DIR=/root/.nvm
 
-# Install base packages
-RUN apt update && apt install -y \
-    curl ca-certificates gnupg2 lsb-release wget unzip git make dos2unix sudo nginx \
-    software-properties-common mariadb-client redis-server \
-    php php-cli php-fpm php-mysql php-mbstring php-xml php-curl php-bcmath php-zip php-redis \
-    build-essential composer nano
+Install base packages with retry and --fix-missing
 
-# Install PHP 8.2 and required extensions
-RUN apt update && \
-    apt install -y lsb-release curl gnupg2 ca-certificates && \
-    echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list && \
-    curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/php.gpg && \
-    apt update && \
-    apt install -y php8.2 php8.2-cli php8.2-fpm php8.2-mysql php8.2-mbstring php8.2-xml php8.2-curl php8.2-bcmath php8.2-zip php8.2-redis php8.2-dev && \
-    update-alternatives --install /usr/bin/php php /usr/bin/php8.2 80 && \
-    update-alternatives --install /usr/bin/php-cli php-cli /usr/bin/php8.2 80 && \
-    apt purge -y php7.4* && \
-    apt autoremove -y && \
-    apt clean && rm -rf /var/lib/apt/lists/*
-    
-# Install Node.js 22 and Yarn using NVM
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
-    . "$NVM_DIR/nvm.sh" && nvm install 22 && nvm use 22 && npm install -g yarn
+RUN apt update && 
+apt install -y --fix-missing 
+curl ca-certificates gnupg2 lsb-release wget unzip git make dos2unix sudo nginx 
+software-properties-common mariadb-client redis-server 
+php php-cli php-fpm php-mysql php-mbstring php-xml php-curl php-bcmath php-zip php-redis 
+build-essential composer nano || 
+(sleep 5 && apt install -y --fix-missing 
+curl ca-certificates gnupg2 lsb-release wget unzip git make dos2unix sudo nginx 
+software-properties-common mariadb-client redis-server 
+php php-cli php-fpm php-mysql php-mbstring php-xml php-curl php-bcmath php-zip php-redis 
+build-essential composer nano)
 
-# Clone MythicalDash
-RUN git clone https://github.com/MythicalLTD/MythicalDash /app
-WORKDIR /app
+Create web root directory
 
-# Install panel dependencies
-RUN bash -c ". $NVM_DIR/nvm.sh && nvm use 22 && make install"
+RUN mkdir -p /var/www/html
 
-# Copy nginx config
-COPY default.conf /etc/nginx/sites-enabled/default
+Copy backend files
 
-# Expose port
-EXPOSE 80
+COPY backend /var/www/html/backend
 
-# Start all services
-CMD service php8.2-fpm start && \
-    service redis-server start && \
-    service nginx start && \
-    tail -f /dev/null
+Copy frontend files
+
+COPY frontend /var/www/html/frontend
+
+Set working directory
+
+WORKDIR /var/www/html/backend
+
+Install PHP dependencies
+
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader
+
+Expose port
+
+EXPOSE 8080
+
+Configure NGINX to serve frontend
+
+RUN rm /etc/nginx/sites-enabled/default && 
+echo "server {\n
+listen 8080;\n
+root /var/www/html/frontend/dist;\n
+index index.html;\n
+location /api {\n
+proxy_pass http://localhost:8000;\n
+proxy_set_header Host $host;\n
+proxy_set_header X-Real-IP $remote_addr;\n
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n
+}\n
+location / {\n
+try_files $uri $uri/ /index.html;\n
+}\n}" > /etc/nginx/sites-available/default && 
+ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
+
+Start all services
+
+CMD service php7.4-fpm start && service nginx start && php -S 0.0.0.0:8000 -t /var/www/html/backend/public
+
