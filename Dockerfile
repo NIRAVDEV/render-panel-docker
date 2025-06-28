@@ -38,6 +38,13 @@ RUN bash -c ". $NVM_DIR/nvm.sh && nvm use 22 && make install"
 # Copy nginx config
 COPY default.conf /etc/nginx/sites-enabled/default
 
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "[✅] Starting PHP-FPM..."\n\
+/usr/sbin/php-fpm8.2 -D\n\
+echo "[✅] Starting Nginx..."\n\
+/usr/sbin/nginx -g "daemon off;"\n' > /entrypoint.sh && chmod +x /entrypoint.sh
+
 # Expose port
 EXPOSE 80
 
