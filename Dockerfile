@@ -15,11 +15,22 @@ RUN apt update --fix-missing && apt install -y \
 RUN rm /etc/nginx/sites-enabled/default && \
     bash -c 'cat > /etc/nginx/sites-enabled/default' <<EOF
 server {
-    listen 8080;
-    root /var/www/html/frontend/dist;
-    index index.html;
+    listen 8080 default_server;
+    root /var/www/html/public;
+
+    index index.php index.html;
+
     location / {
-        try_files \$uri \$uri/ /index.html;
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php7.4-fpm.sock;
+    }
+
+    location ~ /\.ht {
+        deny all;
     }
 }
 EOF
@@ -31,4 +42,6 @@ COPY . /var/www/html
 EXPOSE 8080
 
 # Start services
-CMD service php7.4-fpm start && service mariadb start && service redis-server start && nginx -g "daemon off;"
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+CMD ["/start.sh"]
