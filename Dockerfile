@@ -15,7 +15,7 @@ RUN apt update && apt install -y \
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php && mv composer.phar /usr/local/bin/composer
 
-# Install NVM, Node.js 22, and Yarn
+# Install Node.js 22 and Yarn using NVM
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
     . "$NVM_DIR/nvm.sh" && \
     nvm install $NODE_VERSION && \
@@ -23,7 +23,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | b
     nvm alias default $NODE_VERSION && \
     npm install -g yarn
 
-# Set working directory and copy code
+# Set working directory and copy project files
 WORKDIR /var/www/html
 COPY . .
 
@@ -33,9 +33,9 @@ RUN cd frontend && yarn install && yarn build
 # Install backend dependencies
 RUN cd backend && composer install --no-dev --optimize-autoloader
 
-# Nginx configuration using heredoc to prevent parse errors
-RUN rm /etc/nginx/sites-enabled/default && \
-    cat << 'EOF' > /etc/nginx/sites-available/default
+# Write nginx config using bash-heredoc to avoid parse errors
+RUN bash -c 'rm /etc/nginx/sites-enabled/default && \
+cat << "EOF" > /etc/nginx/sites-available/default
 server {
     listen 8080;
     root /var/www/html/frontend/dist;
@@ -43,20 +43,19 @@ server {
 
     location /api/ {
         proxy_pass http://localhost:9000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
 
     location / {
-        try_files $uri /index.html;
+        try_files \$uri /index.html;
     }
 }
 EOF
+ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default'
 
-RUN ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
-
-# Entrypoint script to launch PHP-FPM and Nginx
+# Entrypoint: start PHP-FPM and Nginx together
 RUN echo '#!/bin/bash\n\
 set -e\n\
 echo "[✅] Starting PHP-FPM..."\n\
