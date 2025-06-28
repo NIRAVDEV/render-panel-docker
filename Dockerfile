@@ -33,10 +33,9 @@ RUN cd frontend && yarn install && yarn build
 # Install backend dependencies
 RUN cd backend && composer install --no-dev --optimize-autoloader
 
-# Write nginx config using bash-heredoc to avoid parse errors
-RUN bash -c 'rm /etc/nginx/sites-enabled/default && \
-cat << "EOF" > /etc/nginx/sites-available/default
-server {
+# Write nginx config using echo + tee
+RUN rm /etc/nginx/sites-enabled/default && \
+    echo "server {
     listen 8080;
     root /var/www/html/frontend/dist;
     index index.html;
@@ -51,11 +50,10 @@ server {
     location / {
         try_files \$uri /index.html;
     }
-}
-EOF
-ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default'
+}" | tee /etc/nginx/sites-available/default && \
+    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
-# Entrypoint: start PHP-FPM and Nginx together
+# Entrypoint script to launch PHP-FPM and Nginx
 RUN echo '#!/bin/bash\n\
 set -e\n\
 echo "[✅] Starting PHP-FPM..."\n\
