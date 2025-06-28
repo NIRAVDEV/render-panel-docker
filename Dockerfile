@@ -5,7 +5,7 @@ ENV NVM_DIR=/root/.nvm
 ENV NODE_VERSION=22
 ENV PATH="$NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH"
 
-# Install dependencies
+# Install system dependencies
 RUN apt update && apt install -y \
     software-properties-common curl wget git unzip zip gnupg2 lsb-release ca-certificates \
     nginx php8.2 php8.2-cli php8.2-fpm php8.2-mysql php8.2-curl php8.2-mbstring \
@@ -15,7 +15,7 @@ RUN apt update && apt install -y \
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php && mv composer.phar /usr/local/bin/composer
 
-# Install NVM and Node.js 22
+# Install NVM, Node.js 22, and Yarn
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
     . "$NVM_DIR/nvm.sh" && \
     nvm install $NODE_VERSION && \
@@ -23,7 +23,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | b
     nvm alias default $NODE_VERSION && \
     npm install -g yarn
 
-# Set working directory and copy files
+# Set working directory and copy code
 WORKDIR /var/www/html
 COPY . .
 
@@ -33,27 +33,30 @@ RUN cd frontend && yarn install && yarn build
 # Install backend dependencies
 RUN cd backend && composer install --no-dev --optimize-autoloader
 
-# Configure Nginx (no indentation inside printf)
+# Nginx configuration using heredoc to prevent parse errors
 RUN rm /etc/nginx/sites-enabled/default && \
-    printf "%s\n" "server {
-listen 8080;
-root /var/www/html/frontend/dist;
-index index.html;
+    cat << 'EOF' > /etc/nginx/sites-available/default
+server {
+    listen 8080;
+    root /var/www/html/frontend/dist;
+    index index.html;
 
-location /api/ {
-    proxy_pass http://localhost:9000;
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    location /api/ {
+        proxy_pass http://localhost:9000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location / {
+        try_files $uri /index.html;
+    }
 }
+EOF
 
-location / {
-    try_files \$uri /index.html;
-}
-}" > /etc/nginx/sites-available/default && \
-    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+RUN ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
-# Entrypoint script to start PHP-FPM and Nginx
+# Entrypoint script to launch PHP-FPM and Nginx
 RUN echo '#!/bin/bash\n\
 set -e\n\
 echo "[✅] Starting PHP-FPM..."\n\
