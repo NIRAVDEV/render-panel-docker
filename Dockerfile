@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install dependencies
 RUN apt update --fix-missing && apt install -y \
     curl ca-certificates gnupg2 lsb-release wget unzip git make dos2unix sudo nginx \
-    software-properties-common mariadb-client redis-server \
+    software-properties-common mariadb-server mariadb-client redis-server \
     php php-cli php-fpm php-mysql php-mbstring php-xml php-curl php-bcmath php-zip php-redis \
     build-essential composer nano
 
@@ -31,4 +31,4 @@ COPY . /var/www/html
 EXPOSE 8080
 
 # Start services
-CMD service php7.4-fpm start && service redis-server start && service mariadb start && nginx -g "daemon off;"
+CMD service php7.4-fpm start && service mariadb start && service redis-server start && nginx -g "daemon off;"
