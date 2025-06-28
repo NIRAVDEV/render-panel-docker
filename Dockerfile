@@ -37,25 +37,27 @@ RUN cd frontend && yarn install && yarn build
 # Install backend dependencies
 RUN cd backend && composer install --no-dev --optimize-autoloader
 
-# Setup Nginx config
+# Setup Nginx config (escaped properly)
 RUN rm /etc/nginx/sites-enabled/default && \
-    echo 'server {
-        listen 8080;
-        root /var/www/html/frontend/dist;
-        index index.html;
-        location /api/ {
-            proxy_pass http://localhost:9000;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-        location / {
-            try_files $uri /index.html;
-        }
-    }' > /etc/nginx/sites-available/default && \
+    echo "server {
+    listen 8080;
+    root /var/www/html/frontend/dist;
+    index index.html;
+
+    location /api/ {
+        proxy_pass http://localhost:9000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    }
+
+    location / {
+        try_files \$uri /index.html;
+    }
+}" > /etc/nginx/sites-available/default && \
     ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
-# Inline entrypoint to start services
+# Entrypoint to start services
 RUN echo '#!/bin/bash\n\
 set -e\n\
 echo "[✅] Starting PHP-FPM..."\n\
