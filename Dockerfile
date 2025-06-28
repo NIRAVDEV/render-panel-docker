@@ -5,7 +5,7 @@ ENV NVM_DIR=/root/.nvm
 ENV NODE_VERSION=22
 ENV PATH="$NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH"
 
-# Install system dependencies
+# Install system dependencies and PHP 8.2
 RUN apt update && apt install -y \
     software-properties-common curl wget git unzip zip gnupg2 lsb-release ca-certificates \
     nginx php8.2 php8.2-cli php8.2-fpm php8.2-mysql php8.2-curl php8.2-mbstring \
@@ -23,7 +23,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | b
     nvm alias default $NODE_VERSION && \
     npm install -g yarn
 
-# Set working directory and copy project files
+# Set working directory and copy files
 WORKDIR /var/www/html
 COPY . .
 
@@ -33,9 +33,9 @@ RUN cd frontend && yarn install && yarn build
 # Install backend dependencies
 RUN cd backend && composer install --no-dev --optimize-autoloader
 
-# Write nginx config using echo + tee
-RUN rm /etc/nginx/sites-enabled/default && \
-    echo "server {
+# Write Nginx config safely using bash -c + echo
+RUN bash -c 'rm /etc/nginx/sites-enabled/default && \
+echo "server {
     listen 8080;
     root /var/www/html/frontend/dist;
     index index.html;
@@ -50,10 +50,10 @@ RUN rm /etc/nginx/sites-enabled/default && \
     location / {
         try_files \$uri /index.html;
     }
-}" | tee /etc/nginx/sites-available/default && \
-    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+}" > /etc/nginx/sites-available/default && \
+ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default'
 
-# Entrypoint script to launch PHP-FPM and Nginx
+# Entrypoint: PHP-FPM and Nginx startup
 RUN echo '#!/bin/bash\n\
 set -e\n\
 echo "[✅] Starting PHP-FPM..."\n\
